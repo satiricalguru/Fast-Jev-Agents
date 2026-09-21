@@ -51,6 +51,6 @@ describe('client retry resilience', () => {
 
     const response = await client.ask('state', { q: { type: 'noul', instructions: 'keep?' } });
     expect(attempts).toBe(2);
-    expect(response.answers.q?.noul).toBe(0.8);
+    expect(response.answers.q).toEqual({ noul: 0.8 });
   });
 });
