@@ -1,5 +1,9 @@
 <div align="center">
 
+<img src="assets/fast-jev-banner.gif" alt="Fast-jev-agents - Continuous, Verbatim Context Compaction for Autonomous Coding Agents" width="100%" />
+
+<br/>
+
 # Fast-jev-agents
 
 **Continuous, Verbatim Context Compaction for Autonomous Coding Agents**
