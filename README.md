@@ -1,10 +1,10 @@
 <div align="center">
 
-<img src="assets/fast-jev-banner.gif" alt="Fast-jev-agents - Continuous, Verbatim Context Compaction for Autonomous Coding Agents" width="100%" />
+<img src="assets/fast-jev-banner.gif" alt="Fast-Jev-Agents - Continuous, Verbatim Context Compaction for Autonomous Coding Agents" width="100%" />
 
 <br/>
 
-# Fast-jev-agents
+# Fast-Jev-Agents
 
 **Continuous, Verbatim Context Compaction for Autonomous Coding Agents**
 
@@ -12,7 +12,7 @@
 
 [![npm version](https://img.shields.io/badge/npm-v0.3.0-blue.svg?style=flat-square)](https://www.npmjs.com)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![Tests Passing](https://img.shields.io/badge/Tests-50%2F50%20passing-brightgreen?style=flat-square)](https://github.com/satiricalguru/Fast-jev-agents)
+[![Tests Passing](https://img.shields.io/badge/Tests-50%2F50%20passing-brightgreen?style=flat-square)](https://github.com/satiricalguru/Fast-Jev-Agents)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Supported Agents](https://img.shields.io/badge/Agents-Claude%20%7C%20Codex%20%7C%20Antigravity%20%7C%20Gemini%20%7C%20OpenCode-blueviolet?style=flat-square)](#supported-coding-agents)
 
@@ -43,14 +43,14 @@ When an AI coding agent runs for 20+ turns, its conversation context approaches 
 
 ### The Solution: Verbatim Jev Compaction
 
-**Fast-jev-agents never summarizes or rewrites text.** Instead, it evaluates every historical tool call and result using TypeSafe's fast probabilistic Jev model alongside intelligent local heuristics:
+**Fast-Jev-Agents never summarizes or rewrites text.** Instead, it evaluates every historical tool call and result using TypeSafe's fast probabilistic Jev model alongside intelligent local heuristics:
 
 1. **User prompts and assistant thoughts stay 100% verbatim**, in chronological order.
 2. **Obsolete or superseded tool results** (e.g. reading a file that was subsequently edited, or huge search dumps) are cleanly truncated to a concise marker while keeping the call record.
 3. **Dead tool calls** (completely irrelevant actions) are pruned entirely.
 4. **Recent active turns and initial task instructions** are pinned and never modified.
 
-| Feature | Standard LLM Summary | Fast-jev-agents |
+| Feature | Standard LLM Summary | Fast-Jev-Agents |
 | :--- | :---: | :---: |
 | **User & Assistant Text** | Rewritten / Paraphrased (Lossy) | **100% Verbatim & Untouched** |
 | **Exact File Paths & Names** | Often Omitted or Mistyped | **Guaranteed Intact** |
@@ -308,8 +308,8 @@ Options:
 
 ```sh
 # Clone repository
-git clone https://github.com/satiricalguru/fast-jev-agents.git
-cd fast-jev-agents
+git clone https://github.com/satiricalguru/Fast-Jev-Agents.git
+cd Fast-Jev-Agents
 
 # Install dependencies
 npm install
