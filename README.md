@@ -4,7 +4,7 @@
 
 <br/>
 
-# Fast-Jev-Agents
+# Fast Jev Agents
 
 **Continuous, Verbatim Context Compaction for Autonomous Coding Agents**
 
