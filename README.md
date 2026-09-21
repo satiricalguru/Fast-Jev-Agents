@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚡ fast-jev-agents
+# Fast-jev-agents
 
 **Continuous, Verbatim Context Compaction for Autonomous Coding Agents**
 
@@ -8,7 +8,7 @@
 
 [![npm version](https://img.shields.io/badge/npm-v0.3.0-blue.svg?style=flat-square)](https://www.npmjs.com)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![Tests Passing](https://img.shields.io/badge/Tests-50%2F50%20passing-brightgreen?style=flat-square)](https://github.com/satiricalguru/fast-jev-agents)
+[![Tests Passing](https://img.shields.io/badge/Tests-50%2F50%20passing-brightgreen?style=flat-square)](https://github.com/satiricalguru/Fast-jev-agents)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Supported Agents](https://img.shields.io/badge/Agents-Claude%20%7C%20Codex%20%7C%20Antigravity%20%7C%20Gemini%20%7C%20OpenCode-blueviolet?style=flat-square)](#supported-coding-agents)
 
@@ -39,14 +39,14 @@ When an AI coding agent runs for 20+ turns, its conversation context approaches 
 
 ### The Solution: Verbatim Jev Compaction
 
-**fast-jev-agents never summarizes or rewrites text.** Instead, it evaluates every historical tool call and result using TypeSafe's fast probabilistic Jev model alongside intelligent local heuristics:
+**Fast-jev-agents never summarizes or rewrites text.** Instead, it evaluates every historical tool call and result using TypeSafe's fast probabilistic Jev model alongside intelligent local heuristics:
 
 1. **User prompts and assistant thoughts stay 100% verbatim**, in chronological order.
 2. **Obsolete or superseded tool results** (e.g. reading a file that was subsequently edited, or huge search dumps) are cleanly truncated to a concise marker while keeping the call record.
 3. **Dead tool calls** (completely irrelevant actions) are pruned entirely.
 4. **Recent active turns and initial task instructions** are pinned and never modified.
 
-| Feature | Standard LLM Summary | fast-jev-agents |
+| Feature | Standard LLM Summary | Fast-jev-agents |
 | :--- | :---: | :---: |
 | **User & Assistant Text** | Rewritten / Paraphrased (Lossy) | **100% Verbatim & Untouched** |
 | **Exact File Paths & Names** | Often Omitted or Mistyped | **Guaranteed Intact** |
@@ -61,26 +61,26 @@ When an AI coding agent runs for 20+ turns, its conversation context approaches 
 
 ```mermaid
 flowchart TD
-    A[Native Agent Transcript\nClaude / Codex / Antigravity / Gemini / OpenCode] --> B[Universal Agent Normalizer]
-    B --> C[Normalized Canonical Message[]]
+    A["Native Agent Transcript<br/>(Claude / Codex / Antigravity / Gemini / OpenCode)"] --> B["Universal Agent Normalizer"]
+    B --> C["Normalized Canonical Messages"]
     
     subgraph Optimization Pipeline
-        C --> D[1. Zero-Allocation Fast Token Estimator\n10x faster O(N) scan]
-        D --> E[2. Heuristic Pre-Compaction\nPrunes superseded reads & duplicate searches]
-        E --> F[3. Decision Cache Lookup\nMemoized scoring across turns]
-        F --> G[4. Concurrent Jev Scoring\nExponential backoff & retry with jitter]
-        G --> H[5. Smart Head + Tail Truncation\nPreserves error summaries & stack traces]
+        C --> D["1. Zero-Allocation Fast Token Estimator<br/>(10x faster O(N) scan)"]
+        D --> E["2. Heuristic Pre-Compaction<br/>(Prunes superseded reads & duplicate searches)"]
+        E --> F["3. Decision Cache Lookup<br/>(Memoized scoring across turns)"]
+        F --> G["4. Concurrent Jev Scoring<br/>(Exponential backoff & retry with jitter)"]
+        G --> H["5. Smart Head + Tail Truncation<br/>(Preserves error summaries & stack traces)"]
     end
     
-    H --> I[Universal Agent Denormalizer]
-    I --> J[Compact Native Transcript\nExact object identity preserved for untouched turns]
+    H --> I["Universal Agent Denormalizer"]
+    I --> J["Compact Native Transcript<br/>(Exact object identity preserved for untouched turns)"]
 ```
 
 ---
 
 ## Key Performance Optimizations
 
-### ⚡ 1. Zero-Allocation Token Estimator
+### 1. Zero-Allocation Token Estimator
 Standard regex matching (`text.matchAll(...)`) creates tens of thousands of temporary substring and iterator objects across large transcripts, causing severe garbage collector pressure. `fast-jev-agents` implements a single-pass character-code scanner that runs **10x faster with 0 heap allocations**, calibrated to match actual Jev token accounting.
 
 ### 🧠 2. Heuristic Pre-Compaction (Cuts State by 50–80%)
