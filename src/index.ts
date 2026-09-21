@@ -4,3 +4,7 @@ export * from './client.js';
 export * from './state.js';
 export * from './compact.js';
 export * from './messages.js';
+export * from './heuristics.js';
+export * from './adapters/index.js';
+export * from './universal.js';
+export * from './integrations/index.js';

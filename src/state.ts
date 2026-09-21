@@ -16,26 +16,66 @@ const INPUT_CHARS = [1000, 200, 60] as const;
 const TEXT_HEAD = 400;
 const TEXT_TAIL = 150;
 
-const TOKEN_PIECES = /[A-Za-z]+|\d+|[^\sA-Za-z\d]/g;
-
 /**
- * Estimates tokens without a tokenizer: a word costs one token per six
+ * Fast zero-allocation token estimation: a word costs one token per six
  * letters, a digit half a token, any other symbol nine tenths. Calibrated
- * against the usage Jev reports for real transcripts, where it lands 2–18%
- * above the true count; a plain characters-per-token ratio undercounts the
- * JSON-heavy states by up to 40%.
+ * against the usage Jev reports for real transcripts.
+ * Zero regex allocations, O(N) single-pass scan.
  */
 export function estimateTokens(text: string): number {
+  const len = text.length;
   let tokens = 0;
-  for (const [piece] of text.matchAll(TOKEN_PIECES)) {
-    const first = piece.charCodeAt(0);
-    if (first >= 48 && first <= 57) tokens += piece.length / 2;
-    else if ((first >= 65 && first <= 90) || (first >= 97 && first <= 122)) {
-      tokens += 1 + Math.floor((piece.length - 1) / 6);
-    } else tokens += 0.9;
+  let i = 0;
+
+  while (i < len) {
+    const code = text.charCodeAt(i);
+    // Whitespace: space (32), tab (9), newline (10), carriage return (13)
+    if (code <= 32) {
+      i++;
+      continue;
+    }
+
+    // Letters: A-Z (65-90), a-z (97-122)
+    if ((code >= 65 && code <= 90) || (code >= 97 && code <= 122)) {
+      const start = i;
+      i++;
+      while (i < len) {
+        const c = text.charCodeAt(i);
+        if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)) {
+          i++;
+        } else {
+          break;
+        }
+      }
+      tokens += 1 + Math.floor((i - start - 1) / 6);
+      continue;
+    }
+
+    // Digits: 0-9 (48-57)
+    if (code >= 48 && code <= 57) {
+      const start = i;
+      i++;
+      while (i < len) {
+        const c = text.charCodeAt(i);
+        if (c >= 48 && c <= 57) {
+          i++;
+        } else {
+          break;
+        }
+      }
+      tokens += (i - start) / 2;
+      continue;
+    }
+
+    // Any other symbol (not whitespace, not A-Za-z, not 0-9)
+    tokens += 0.9;
+    i++;
   }
+
   return Math.ceil(tokens);
 }
+
+export const fastEstimateTokens = estimateTokens;
 
 export function truncate(text: string, limit: number): string {
   return text.length <= limit ? text : `${text.slice(0, Math.max(0, limit - 1))}…`;

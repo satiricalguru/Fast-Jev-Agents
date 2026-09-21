@@ -1,8 +1,10 @@
+import { analyzeHeuristics, smartTruncateResultText } from './heuristics.js';
 import { noulAnswer } from './request.js';
 import { collectToolCalls, estimateTokens, fitState } from './state.js';
 import type {
   CallAnswer,
   CallDecision,
+  CompactionCache,
   CompactOptions,
   CompactResult,
   CompactionState,
@@ -21,6 +23,13 @@ export const DEFAULT_OPTIONS: ResolvedCompactOptions = {
   maxStateTokens: 25_000,
   maxRequestTokens: 30_000,
   truncateHeadChars: 300,
+  truncateTailChars: 0,
+  enableHeuristics: true,
+  fallbackMode: 'throw',
+  concurrency: 4,
+  timeoutMs: 30_000,
+  retries: 2,
+  cache: undefined,
 };
 
 /** Tokens the request envelope (`model`, key names) adds around state and questions. */
@@ -31,6 +40,11 @@ function finite(value: number | undefined, fallback: number): number {
 }
 
 export function resolveOptions(options: CompactOptions = {}): ResolvedCompactOptions {
+  let cache: CompactionCache | undefined;
+  if (options.cache && typeof options.cache === 'object') {
+    cache = options.cache;
+  }
+
   return {
     goal: options.goal ?? DEFAULT_OPTIONS.goal,
     keepThreshold: finite(options.keepThreshold, DEFAULT_OPTIONS.keepThreshold),
@@ -49,6 +63,16 @@ export function resolveOptions(options: CompactOptions = {}): ResolvedCompactOpt
       0,
       Math.floor(finite(options.truncateHeadChars, DEFAULT_OPTIONS.truncateHeadChars)),
     ),
+    truncateTailChars: Math.max(
+      0,
+      Math.floor(finite(options.truncateTailChars, DEFAULT_OPTIONS.truncateTailChars)),
+    ),
+    enableHeuristics: options.enableHeuristics ?? DEFAULT_OPTIONS.enableHeuristics,
+    fallbackMode: options.fallbackMode ?? DEFAULT_OPTIONS.fallbackMode,
+    concurrency: Math.max(1, finite(options.concurrency, DEFAULT_OPTIONS.concurrency)),
+    timeoutMs: Math.max(100, finite(options.timeoutMs, DEFAULT_OPTIONS.timeoutMs)),
+    retries: Math.max(0, finite(options.retries, DEFAULT_OPTIONS.retries)),
+    cache,
   };
 }
 
@@ -132,12 +156,34 @@ async function askBatch(
   );
 }
 
-function truncatedResultText(text: string, isError: boolean, headChars: number): string {
-  if (text.length <= headChars + 120) return text;
-  const head = headChars > 0 ? `${text.slice(0, headChars)}\n` : '';
-  return `${head}[fast-jev-compaction truncated ${text.length - headChars} chars of this tool result${
-    isError ? ' (error)' : ''
-  }; re-run the tool if needed]`;
+/** Runs tasks with a maximum concurrency limit. */
+async function runWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  if (items.length === 0) return [];
+  const results: R[] = new Array(items.length);
+  let currentIndex = 0;
+
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (currentIndex < items.length) {
+      const idx = currentIndex++;
+      results[idx] = await fn(items[idx]!);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
+}
+
+function truncatedResultText(
+  text: string,
+  isError: boolean,
+  headChars: number,
+  tailChars: number = 0,
+): string {
+  return smartTruncateResultText(text, isError, headChars, tailChars);
 }
 
 /**
@@ -151,6 +197,7 @@ export function applyDecisions(
   decisions: readonly CallDecision[],
   calls: readonly ToolCall[],
   headChars: number,
+  tailChars: number = 0,
 ): Message[] {
   const byId = new Map(calls.map((call) => [call.id, call]));
   const actions = new Map<string, CallDecision['action']>();
@@ -175,6 +222,7 @@ export function applyDecisions(
           tool.text ?? '',
           tool.isError ?? false,
           headChars,
+          tailChars,
         );
         if ((tool.text ?? '') === text) return tool;
         const copy: ToolUse = {
@@ -190,7 +238,7 @@ export function applyDecisions(
       .filter((result) => actions.get(result.tool_use_id) !== 'drop_call')
       .map((result) => {
         if (actions.get(result.tool_use_id) !== 'drop_result') return result;
-        const text = truncatedResultText(result.text, result.isError ?? false, headChars);
+        const text = truncatedResultText(result.text, result.isError ?? false, headChars, tailChars);
         return text === result.text
           ? result
           : {
@@ -268,14 +316,75 @@ export async function compact(
   let fitted: { tokens: number; stage: string } = { tokens: 0, stage: '' };
   let batches: ToolCall[][] = [];
   const answers = new Map<string, CallAnswer>();
-  if (candidates.length > 0) {
-    const state = fitState(messages, calls, resolved);
-    fitted = state;
-    batches = batchCalls(candidates, state.tokens, resolved);
-    const answered = await Promise.all(
-      batches.map((batch) => askBatch(asker, state.state, batch)),
-    );
-    for (const map of answered) for (const [id, answer] of map) answers.set(id, answer);
+  let heuristicsPruned = 0;
+  let cacheHits = 0;
+
+  // Step 1: Pre-compaction heuristics (if enabled)
+  let candidatesToAsk = candidates;
+  if (resolved.enableHeuristics && candidates.length > 0) {
+    const analysis = analyzeHeuristics(calls);
+    for (const [id, answer] of analysis.decisions) {
+      if (candidates.some((c) => c.id === id)) {
+        answers.set(id, answer);
+        heuristicsPruned++;
+      }
+    }
+    candidatesToAsk = candidates.filter((c) => !answers.has(c.id));
+  }
+
+  // Step 2: Decision Cache lookup
+  if (resolved.cache && candidatesToAsk.length > 0) {
+    const remaining: ToolCall[] = [];
+    for (const call of candidatesToAsk) {
+      const cacheKey = `${call.tool}:${JSON.stringify(call.input)}`;
+      const cached = resolved.cache.get(cacheKey);
+      if (cached) {
+        answers.set(call.id, cached);
+        cacheHits++;
+      } else {
+        remaining.push(call);
+      }
+    }
+    candidatesToAsk = remaining;
+  }
+
+  // Step 3: Query Jev for remaining candidates
+  if (candidatesToAsk.length > 0) {
+    try {
+      const state = fitState(messages, calls, resolved);
+      fitted = state;
+      batches = batchCalls(candidatesToAsk, state.tokens, resolved);
+
+      const answeredMaps = await runWithConcurrency(
+        batches,
+        resolved.concurrency,
+        (batch) => askBatch(asker, state.state, batch),
+      );
+
+      for (const map of answeredMaps) {
+        for (const [id, answer] of map) {
+          answers.set(id, answer);
+          if (resolved.cache) {
+            const call = candidates.find((c) => c.id === id);
+            if (call) {
+              resolved.cache.set(`${call.tool}:${JSON.stringify(call.input)}`, answer);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      if (resolved.fallbackMode === 'local') {
+        fitted.stage = 'local_fallback';
+        for (const call of candidatesToAsk) {
+          answers.set(call.id, {
+            keepCall: 0.9,
+            keepResult: 0.1,
+          });
+        }
+      } else {
+        throw error;
+      }
+    }
   }
 
   const decisions = calls.map((call) =>
@@ -286,7 +395,9 @@ export async function compact(
     decisions,
     calls,
     resolved.truncateHeadChars,
+    resolved.truncateTailChars,
   );
+
   return {
     messages: kept,
     decisions,
@@ -300,6 +411,8 @@ export async function compact(
       resultsDropped: count(decisions, 'result_dropped'),
       callsDropped: count(decisions, 'call_dropped'),
       pinned: count(decisions, 'pinned'),
+      heuristicsPruned,
+      cacheHits,
       stateTokens: fitted.tokens,
       stateStage: fitted.stage,
       requests: batches.length,

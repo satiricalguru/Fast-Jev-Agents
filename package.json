@@ -1,16 +1,37 @@
 {
-  "name": "fast-jev-compaction",
-  "version": "0.2.0",
-  "description": "Continuous, verbatim context compaction for LLM agents using TypeSafe's Jev model.",
+  "name": "fast-jev-agents",
+  "version": "0.3.0",
+  "description": "High-performance verbatim context compaction for coding agents (Claude, Codex, Antigravity, Gemini, OpenCode)",
+  "contributors": [
+    {
+      "name": "Tamara Tran",
+      "url": "https://github.com/tamaratran"
+    },
+    {
+      "name": "Devin AI",
+      "url": "https://github.com/apps/devin-ai-integration"
+    }
+  ],
   "type": "module",
   "license": "MIT",
   "engines": {
     "node": ">=18"
   },
+  "bin": {
+    "fast-jev": "./dist/bin/cli.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./adapters": {
+      "types": "./dist/adapters/index.d.ts",
+      "import": "./dist/adapters/index.js"
+    },
+    "./integrations": {
+      "types": "./dist/integrations/index.d.ts",
+      "import": "./dist/integrations/index.js"
     }
   },
   "files": [

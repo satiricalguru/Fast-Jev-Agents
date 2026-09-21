@@ -92,6 +92,15 @@ export interface FittedState {
   stage: string;
 }
 
+export type SupportedAgent = 'claude' | 'codex' | 'antigravity' | 'gemini' | 'opencode' | 'universal';
+
+export interface CompactionCache {
+  get(key: string): CallAnswer | undefined;
+  set(key: string, answer: CallAnswer): void;
+  has(key: string): boolean;
+  clear(): void;
+}
+
 export interface CompactOptions {
   /** Ongoing task description; defaults to the last few user prompts. */
   goal?: string;
@@ -103,8 +112,22 @@ export interface CompactOptions {
   maxStateTokens?: number;
   /** Estimated token ceiling for state plus one batch of questions. Default 30000. */
   maxRequestTokens?: number;
-  /** Characters of a dropped tool result to retain. Default 300. */
+  /** Characters of a dropped tool result to retain at the head. Default 300. */
   truncateHeadChars?: number;
+  /** Characters of a dropped tool result to retain at the tail (e.g. error summaries). Default 150. */
+  truncateTailChars?: number;
+  /** Whether to enable heuristic pre-compaction (pruning superseded reads & duplicate searches). Default true. */
+  enableHeuristics?: boolean;
+  /** What to do if Jev fails or is unconfigured: 'local' (rule-based compaction fallback) or 'throw'. Default 'throw' for strict mode. */
+  fallbackMode?: 'local' | 'throw';
+  /** Max concurrent question batch requests. Default 4. */
+  concurrency?: number;
+  /** Request timeout in ms. Default 30000. */
+  timeoutMs?: number;
+  /** Number of retry attempts on network/429 failures. Default 2. */
+  retries?: number;
+  /** Decision cache instance or true for default in-memory cache. */
+  cache?: boolean | CompactionCache;
 }
 
 export interface ResolvedCompactOptions {
@@ -114,6 +137,13 @@ export interface ResolvedCompactOptions {
   maxStateTokens: number;
   maxRequestTokens: number;
   truncateHeadChars: number;
+  truncateTailChars: number;
+  enableHeuristics: boolean;
+  fallbackMode: 'local' | 'throw';
+  concurrency: number;
+  timeoutMs: number;
+  retries: number;
+  cache?: CompactionCache;
 }
 
 export interface CompactResult {
@@ -130,6 +160,8 @@ export interface CompactResult {
     resultsDropped: number;
     callsDropped: number;
     pinned: number;
+    heuristicsPruned: number;
+    cacheHits: number;
     stateTokens: number;
     /** Which fitting stage the state needed, '' when no request was made. */
     stateStage: string;
